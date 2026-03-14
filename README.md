@@ -1,8 +1,8 @@
-# JanSevak - Government Complaint Management System
+# Civic Connect - Government Complaint Management System
 
 ## Overview
 
-JanSevak is a comprehensive government complaint management system built for the Smart India Hackathon (SIH). The system enables citizens to submit complaints through WhatsApp and provides an admin dashboard for authorities to track, manage, and resolve these complaints efficiently.
+CivicConnect is a comprehensive government complaint management system built for the Smart India Hackathon (SIH). The system enables citizens to submit complaints through WhatsApp and provides an admin dashboard for authorities to track, manage, and resolve these complaints efficiently.
 
 ## 🏗️ Architecture
 
