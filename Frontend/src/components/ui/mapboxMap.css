@@ -1,0 +1,156 @@
+.map-container {
+  width: 100%;
+  height: 500px;
+  position: relative; /* ensures markers stay inside map container */
+  z-index: 0; /* map container stays behind other components if needed */
+}
+
+/* Popup Styles */
+.complaint-popup {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  max-width: 350px;
+  min-width: 300px;
+}
+
+.popup-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 16px;
+  margin: -10px -10px 12px -10px;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.popup-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.report-id {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.popup-content {
+  padding: 0;
+}
+
+.detail-row {
+  display: flex;
+  margin-bottom: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.label {
+  font-weight: 600;
+  color: #4a5568;
+  min-width: 100px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.value {
+  flex: 1;
+  font-size: 13px;
+  color: #2d3748;
+  word-break: break-word;
+}
+
+/* Category specific colors */
+.category-road_infrastructure {
+  background: #fed7d7;
+  color: #c53030;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.category-electricity_power {
+  background: #fefcbf;
+  color: #d69e2e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.category-water_sanitation {
+  background: #bee3f8;
+  color: #2b6cb0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Priority specific colors */
+.priority-high,
+.priority-very_high {
+  background: #fed7d7;
+  color: #c53030;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.priority-medium {
+  background: #fefcbf;
+  color: #d69e2e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.priority-low {
+  background: #c6f6d5;
+  color: #2f855a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Status specific colors */
+.status-submitted {
+  background: #bee3f8;
+  color: #2b6cb0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-in_progress {
+  background: #fefcbf;
+  color: #d69e2e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-resolved {
+  background: #c6f6d5;
+  color: #2f855a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
