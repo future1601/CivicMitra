@@ -8,7 +8,7 @@ interface Complaint {
   id: string;
   title: string;
   location: string;
-  severity: "low" | "medium" | "high";
+  severity: "low" | "medium" | "high" | "very_high";
   description?: string;
   submittedBy?: string;
   submittedDate?: string;
@@ -23,6 +23,14 @@ interface ComplaintDetailsProps {
 }
 
 export function ComplaintDetails({ complaint, onBack }: ComplaintDetailsProps) {
+  const formattedSubmittedDate = (() => {
+    const parsed = new Date(complaint.submittedDate || "");
+    if (Number.isNaN(parsed.getTime())) {
+      return complaint.submittedDate || "June 15, 2024";
+    }
+    return parsed.toLocaleString();
+  })();
+
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case "very_high":
@@ -75,7 +83,7 @@ export function ComplaintDetails({ complaint, onBack }: ComplaintDetailsProps) {
               </div>
               <div className="flex items-center space-x-1">
                 <Calendar className="w-4 h-4" />
-                <span>{complaint.submittedDate || "June 15, 2024"}</span>
+                <span>{formattedSubmittedDate}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <User className="w-4 h-4" />

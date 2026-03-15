@@ -18,7 +18,7 @@ interface Complaint {
   id: string;
   title: string;
   location: string;
-  severity: "low" | "medium" | "high";
+  severity: "low" | "medium" | "high" | "very_high";
   submittedDate: string;
   status: string;
   category: string;
@@ -54,6 +54,14 @@ export function ComplaintsTable({ onViewComplaint }: ComplaintsTableProps) {
     }
   };
 
+  const formatDisplayDate = (value: string) => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value || "Unknown date";
+    }
+    return parsed.toLocaleDateString();
+  };
+
   // Convert Report to Complaint format for compatibility
   const complaints: Complaint[] = reports.map((report) => ({
     id: report.report_id,
@@ -65,7 +73,7 @@ export function ComplaintsTable({ onViewComplaint }: ComplaintsTableProps) {
     location:
       report.address_extracted ||
       `${report.location_lat}, ${report.location_lon}`,
-    severity: report.priority as "low" | "medium" | "high",
+    severity: report.priority as "low" | "medium" | "high" | "very_high",
     submittedDate: report.created_at,
     status: report.status,
     category: report.category,
@@ -231,7 +239,7 @@ export function ComplaintsTable({ onViewComplaint }: ComplaintsTableProps) {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-slate-600">
-                      {new Date(complaint.submittedDate).toLocaleDateString()}
+                      {formatDisplayDate(complaint.submittedDate)}
                     </TableCell>
                     <TableCell>
                       <Button

@@ -4,13 +4,15 @@ import {
   Bot,
   ClipboardList,
   MapPinned,
+  PhoneCall,
 } from "lucide-react";
 import { Navigation } from "./components/Navigation";
-import JharkhandHeatmap from "./components/JharkhandHeatmap";
+import Heatmap from "./components/Heatmap";
 import { StatisticsSection } from "./components/StatisticsSection";
 import { ComplaintDetails } from "./components/ComplaintDetails";
 import { ComplaintsTable } from "./components/ComplaintsTable";
 import { ChatbotPage } from "./components/ChatbotPage";
+import { CallingConsolePage } from "./components/CallingConsolePage";
 import { Button } from "./components/ui/button";
 
 interface Complaint {
@@ -139,6 +141,19 @@ export default function App() {
             </p>
           </div>
         </div>
+
+        <div className="quick-card">
+          <div className="quick-card__icon">
+            <PhoneCall className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="quick-card__title">Emergency call console</h3>
+            <p className="quick-card__text">
+              Monitor the Twilio calling service, expose the detector endpoint,
+              and manually trigger broadcast alerts from the dashboard.
+            </p>
+          </div>
+        </div>
       </section>
 
       <section className="surface-panel surface-panel--padded">
@@ -147,7 +162,7 @@ export default function App() {
           title="Complaint density map"
           description="The map stays central to the dashboard so operators can review field activity, filter by department or priority, and inspect complaint details in context."
         />
-        <JharkhandHeatmap onComplaintClick={handleComplaintClick} />
+        <Heatmap onComplaintClick={handleComplaintClick} />
       </section>
 
       <section className="surface-panel surface-panel--padded">
@@ -157,6 +172,35 @@ export default function App() {
           description="Track complaint throughput, review trends, and monitor department-level distribution from a cleaner analytics section."
         />
         <StatisticsSection />
+      </section>
+
+      <section className="surface-panel surface-panel--padded">
+        <SectionHeader
+          eyebrow="Emergency Response"
+          title="Calling service control"
+          description="Keep the FastAPI calling service visible from the same dashboard so operators can verify detector routing, inspect endpoint health, and trigger manual alert calls when needed."
+        />
+
+        <div className="flex flex-col gap-4 rounded-[24px] border border-slate-200 bg-slate-50/80 p-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">
+              Open the emergency broadcast console
+            </h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Use the dedicated calling tab to confirm service health and send
+              a test or live broadcast call to the phone number carried in the
+              detector payload.
+            </p>
+          </div>
+
+          <Button
+            onClick={() => handleTabChange("calls")}
+            className="rounded-full bg-slate-900 px-5 text-white hover:bg-slate-800"
+          >
+            Open calling console
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
       </section>
     </div>
   );
@@ -190,7 +234,7 @@ export default function App() {
             </section>
 
             <section className="surface-panel surface-panel--padded">
-              <JharkhandHeatmap onComplaintClick={handleComplaintClick} />
+              <Heatmap onComplaintClick={handleComplaintClick} />
             </section>
           </div>
         );
@@ -228,6 +272,25 @@ export default function App() {
             </section>
 
             <ChatbotPage />
+          </div>
+        );
+
+      case "calls":
+        return (
+          <div className="page-stack">
+            <section className="surface-panel page-masthead">
+              <div className="page-masthead__copy">
+                <p className="section-eyebrow">Emergency Broadcast</p>
+                <h1 className="page-title">Calling service console</h1>
+                <p className="page-copy">
+                  Monitor the FastAPI calling service, share the detector-facing
+                  broadcast endpoint, and trigger Twilio alert calls from the
+                  admin dashboard.
+                </p>
+              </div>
+            </section>
+
+            <CallingConsolePage />
           </div>
         );
 

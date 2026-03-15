@@ -3,6 +3,7 @@ import {
   ClipboardList,
   Home,
   MapPinned,
+  PhoneCall,
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -17,6 +18,7 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
     { id: "home", label: "Home", icon: Home },
     { id: "map", label: "Map", icon: MapPinned },
     { id: "complaints", label: "Complaints", icon: ClipboardList },
+    { id: "calls", label: "Calls", icon: PhoneCall },
     { id: "chatbot", label: "Chatbot", icon: Bot },
   ];
 
@@ -29,7 +31,7 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
           </div>
 
           <div>
-            <p className="admin-brand__eyebrow">Civic Connect</p>
+            <p className="admin-brand__eyebrow">Civic Mitra</p>
             <h1 className="admin-brand__title">Administrative Grievance Console</h1>
             <p className="admin-brand__subtitle">
               Monitoring, review, and resolution workspace

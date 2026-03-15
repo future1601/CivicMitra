@@ -271,6 +271,13 @@ select,
 textarea {
   background: #f7f9fc;
   border-color: rgba(148, 163, 184, 0.35);
+  color: var(--app-ink);
+  caret-color: var(--app-brand);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(91, 107, 128, 0.78);
 }
 
 @media (max-width: 1100px) {

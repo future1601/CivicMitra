@@ -1,8 +1,41 @@
 .map-container {
   width: 100%;
-  height: 500px;
-  position: relative; /* ensures markers stay inside map container */
-  z-index: 0; /* map container stays behind other components if needed */
+  height: 100%;
+  min-height: 560px;
+  min-width: 0;
+  display: block;
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.map-container.mapboxgl-map,
+.map-container .mapboxgl-canvas,
+.map-container .mapboxgl-canvas-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.map-container .mapboxgl-ctrl-top-right {
+  top: 1rem;
+  right: 1rem;
+}
+
+.map-container .mapboxgl-ctrl-group {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 18px 40px -28px rgba(15, 23, 42, 0.4);
+}
+
+.map-container .mapboxgl-ctrl-group button {
+  width: 36px;
+  height: 36px;
+}
+
+.map-container .mapboxgl-ctrl-group button + button {
+  border-top-color: rgba(148, 163, 184, 0.2);
 }
 
 /* Popup Styles */

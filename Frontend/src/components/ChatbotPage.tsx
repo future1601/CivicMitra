@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Bot, SendHorizontal, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -19,6 +20,176 @@ interface ChatStats {
   recent_complaints: number;
 }
 
+interface ParsedComplaint {
+  reportId?: string;
+  category?: string;
+  priority?: string;
+  description?: string;
+  status?: string;
+  createdAt?: string;
+}
+
+const quickQuestions = [
+  "How many total complaints do we have?",
+  "Show me complaints by category",
+  "Which complaints have high priority?",
+  "Show me the latest 5 complaints",
+  "What's the status distribution of complaints?",
+];
+
+const formatLabel = (value: string) =>
+  value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+
+const getPriorityTone = (priority: string) => {
+  switch (priority.toLowerCase()) {
+    case "very_high":
+      return "border-red-200 bg-red-50 text-red-700";
+    case "high":
+      return "border-orange-200 bg-orange-50 text-orange-700";
+    case "medium":
+      return "border-yellow-200 bg-yellow-50 text-yellow-700";
+    case "low":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    default:
+      return "border-slate-200 bg-slate-100 text-slate-700";
+  }
+};
+
+const getStatusTone = (status: string) => {
+  switch (status.toLowerCase()) {
+    case "resolved":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "in_progress":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    case "submitted":
+      return "border-slate-200 bg-slate-100 text-slate-700";
+    default:
+      return "border-slate-200 bg-slate-100 text-slate-700";
+  }
+};
+
+const parseComplaintMessage = (text: string): ReactNode => {
+  if (!(text.includes("**Complaint") && text.includes("Report ID:"))) {
+    return text;
+  }
+
+  const sections = text
+    .split(/\*\*Complaint \d+:\*\*/)
+    .map((section) => section.trim());
+  const intro = sections[0];
+  const complaints = sections.slice(1).filter(Boolean);
+
+  return (
+    <div className="space-y-4">
+      {intro && <p className="text-sm font-medium text-slate-700">{intro}</p>}
+
+      {complaints.map((complaint, index) => {
+        const parsed: ParsedComplaint = {};
+
+        complaint
+          .split("\n")
+          .map((line) => line.replace(/^\*\s*/, "").trim())
+          .filter(Boolean)
+          .forEach((line) => {
+            if (line.includes("**Report ID:**")) {
+              parsed.reportId = line.replace("**Report ID:**", "").trim();
+            } else if (line.includes("**Category:**")) {
+              parsed.category = line.replace("**Category:**", "").trim();
+            } else if (line.includes("**Priority:**")) {
+              parsed.priority = line.replace("**Priority:**", "").trim();
+            } else if (line.includes("**Description:**")) {
+              parsed.description = line.replace("**Description:**", "").trim();
+            } else if (line.includes("**Status:**")) {
+              parsed.status = line.replace("**Status:**", "").trim();
+            } else if (line.includes("**Created At:**")) {
+              parsed.createdAt = line.replace("**Created At:**", "").trim();
+            }
+          });
+
+        return (
+          <div
+            key={`${parsed.reportId ?? "complaint"}-${index}`}
+            className="rounded-[20px] border border-slate-200 bg-slate-50/90 p-4 shadow-sm"
+          >
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Complaint {index + 1}
+                </p>
+                {parsed.reportId && (
+                  <p className="mt-1 font-mono text-sm text-slate-900">
+                    {parsed.reportId}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {parsed.priority && (
+                  <span
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${getPriorityTone(
+                      parsed.priority
+                    )}`}
+                  >
+                    {formatLabel(parsed.priority)}
+                  </span>
+                )}
+
+                {parsed.status && (
+                  <span
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${getStatusTone(
+                      parsed.status
+                    )}`}
+                  >
+                    {formatLabel(parsed.status)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm leading-6 text-slate-700">
+              {parsed.category && (
+                <div className="grid gap-1 sm:grid-cols-[96px_minmax(0,1fr)]">
+                  <span className="font-medium text-slate-500">Category</span>
+                  <span className="text-slate-900">
+                    {formatLabel(parsed.category)}
+                  </span>
+                </div>
+              )}
+
+              {parsed.description && (
+                <div className="grid gap-1 sm:grid-cols-[96px_minmax(0,1fr)]">
+                  <span className="font-medium text-slate-500">
+                    Description
+                  </span>
+                  <span className="text-slate-900">{parsed.description}</span>
+                </div>
+              )}
+
+              {parsed.createdAt && (
+                <div className="grid gap-1 sm:grid-cols-[96px_minmax(0,1fr)]">
+                  <span className="font-medium text-slate-500">Created</span>
+                  <span className="text-slate-900">
+                    {new Date(parsed.createdAt).toLocaleString()}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {text.includes("For more details") && (
+        <div className="rounded-[18px] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+          <span className="font-semibold">Tip:</span> Ask with a specific report
+          ID to retrieve the full complaint record, location, and attachments.
+        </div>
+      )}
+    </div>
+  );
+};
+
 export function ChatbotPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -33,279 +204,86 @@ export function ChatbotPage() {
   const [stats, setStats] = useState<ChatStats | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, [messages, isLoading]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const loadStats = async () => {
+      try {
+        const response = await apiService.getChatbotStats();
+        setStats(response);
+      } catch (error) {
+        console.error("Error fetching chatbot stats:", error);
+      }
+    };
 
-  useEffect(() => {
-    // Fetch initial stats
-    fetchStats();
+    void loadStats();
   }, []);
 
-  const fetchStats = async () => {
-    try {
-      const response = await fetch("http://localhost:8000/api/chatbot/stats");
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error("Error fetching stats:", error);
+  const submitMessage = async (messageText: string) => {
+    const trimmedMessage = messageText.trim();
+    if (!trimmedMessage || isLoading) {
+      return;
     }
-  };
-
-  const sendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      text: inputMessage,
+      text: trimmedMessage,
       sender: "user",
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const nextHistory = [...messages, userMessage].map((message) => ({
+      text: message.text,
+      sender: message.sender,
+    }));
+
+    setMessages((previousMessages) => [...previousMessages, userMessage]);
     setInputMessage("");
     setIsLoading(true);
 
     try {
-      // Prepare chat history for API
-      const chatHistory = messages.map((msg) => ({
-        text: msg.text,
-        sender: msg.sender,
-      }));
-
-      const response = await fetch(
-        "http://localhost:8000/api/chatbot/message",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            message: inputMessage,
-            chat_history: chatHistory,
-          }),
-        }
+      const response = await apiService.sendChatMessage(
+        trimmedMessage,
+        nextHistory
       );
-
-      if (!response.ok) {
-        throw new Error("Failed to get response from chatbot");
-      }
-
-      const data = await response.json();
 
       const botMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        text: data.response,
+        text: response.response,
         sender: "bot",
         timestamp: new Date(),
       };
 
-      setMessages((prev) => [...prev, botMessage]);
+      setMessages((previousMessages) => [...previousMessages, botMessage]);
     } catch (error) {
       console.error("Error sending message:", error);
-      const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        text: "Sorry, I encountered an error. Please try again.",
-        sender: "bot",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((previousMessages) => [
+        ...previousMessages,
+        {
+          id: (Date.now() + 1).toString(),
+          text: "Sorry, I encountered an error. Please try again.",
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void submitMessage(inputMessage);
     }
-  };
-
-  const quickQuestions = [
-    "How many total complaints do we have?",
-    "Show me complaints by category",
-    "Which complaints have high priority?",
-    "Show me the latest 5 complaints",
-    "What's the status distribution of complaints?",
-  ];
-
-  const handleQuickQuestion = (question: string) => {
-    setInputMessage(question);
-  };
-
-  // Helper function to format complaint listings
-  const formatComplaintText = (text: string) => {
-    // Check if the text contains complaint data pattern
-    if (text.includes("**Complaint") && text.includes("Report ID:")) {
-      // Split by complaint sections
-      const parts = text.split(/\*\*Complaint \d+:\*\*/);
-      const intro = parts[0].trim();
-      const complaints = parts.slice(1);
-
-      return (
-        <div className="space-y-4">
-          {intro && (
-            <div className="text-gray-700 font-medium mb-4">{intro}</div>
-          )}
-
-          {complaints.map((complaint, index) => {
-            // Parse each complaint's details
-            const lines = complaint
-              .trim()
-              .split("\n")
-              .filter((line) => line.trim());
-            const complaintData: any = {};
-
-            lines.forEach((line) => {
-              const cleanLine = line.replace(/^\*\s*/, "").trim();
-              if (cleanLine.includes("**Report ID:**")) {
-                complaintData.reportId = cleanLine
-                  .replace("**Report ID:**", "")
-                  .trim();
-              } else if (cleanLine.includes("**Category:**")) {
-                complaintData.category = cleanLine
-                  .replace("**Category:**", "")
-                  .trim();
-              } else if (cleanLine.includes("**Priority:**")) {
-                complaintData.priority = cleanLine
-                  .replace("**Priority:**", "")
-                  .trim();
-              } else if (cleanLine.includes("**Description:**")) {
-                complaintData.description = cleanLine
-                  .replace("**Description:**", "")
-                  .trim();
-              } else if (cleanLine.includes("**Status:**")) {
-                complaintData.status = cleanLine
-                  .replace("**Status:**", "")
-                  .trim();
-              } else if (cleanLine.includes("**Created At:**")) {
-                complaintData.createdAt = cleanLine
-                  .replace("**Created At:**", "")
-                  .trim();
-              }
-            });
-
-            const getPriorityColor = (priority: string) => {
-              switch (priority?.toLowerCase()) {
-                case "very_high":
-                  return "bg-red-100 text-red-800 border-red-200";
-                case "high":
-                  return "bg-orange-100 text-orange-800 border-orange-200";
-                case "medium":
-                  return "bg-yellow-100 text-yellow-800 border-yellow-200";
-                case "low":
-                  return "bg-green-100 text-green-800 border-green-200";
-                default:
-                  return "bg-gray-100 text-gray-800 border-gray-200";
-              }
-            };
-
-            return (
-              <div
-                key={index}
-                className="bg-gray-50 rounded-lg p-4 border border-gray-200"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <h4 className="text-lg font-semibold text-gray-900">
-                    Complaint {index + 1}
-                  </h4>
-                  <div className="flex gap-2">
-                    {complaintData.priority && (
-                      <Badge
-                        className={getPriorityColor(complaintData.priority)}
-                      >
-                        {complaintData.priority.replace("_", " ").toUpperCase()}{" "}
-                        Priority
-                      </Badge>
-                    )}
-                    {complaintData.status && (
-                      <Badge
-                        variant="outline"
-                        className="border-blue-200 text-blue-800 bg-blue-50"
-                      >
-                        {complaintData.status.replace("_", " ").toUpperCase()}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  {complaintData.reportId && (
-                    <div className="flex">
-                      <span className="font-medium text-gray-600 w-24">
-                        Report ID:
-                      </span>
-                      <span className="font-mono text-gray-900">
-                        {complaintData.reportId}
-                      </span>
-                    </div>
-                  )}
-
-                  {complaintData.category && (
-                    <div className="flex">
-                      <span className="font-medium text-gray-600 w-24">
-                        Category:
-                      </span>
-                      <span className="text-gray-900 capitalize">
-                        {complaintData.category.replace("_", " ")}
-                      </span>
-                    </div>
-                  )}
-
-                  {complaintData.description && (
-                    <div className="flex">
-                      <span className="font-medium text-gray-600 w-24">
-                        Description:
-                      </span>
-                      <span className="text-gray-900 flex-1">
-                        {complaintData.description}
-                      </span>
-                    </div>
-                  )}
-
-                  {complaintData.createdAt && (
-                    <div className="flex">
-                      <span className="font-medium text-gray-600 w-24">
-                        Created:
-                      </span>
-                      <span className="text-gray-900">
-                        {new Date(complaintData.createdAt).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-
-          {text.includes("For more details") && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                💡 <strong>Tip:</strong> For more details on any complaint,
-                including phone number, location, and images, please specify the
-                Report ID.
-              </p>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // Return original text if not a complaint listing
-    return text;
   };
 
   return (
     <div className="space-y-5">
       {stats && (
-        <div className="mb-2 grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card className="rounded-[22px] border-slate-200 bg-white/94 shadow-[0_18px_48px_-34px_rgba(15,23,42,0.3)]">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-500">
@@ -339,11 +317,15 @@ export function ChatbotPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {Object.entries(stats.by_status).map(([status, count]) => (
-                  <div key={status} className="flex justify-between text-sm">
-                    <span className="capitalize text-slate-700">{status}</span>
-                    <Badge variant="outline">{count}</Badge>
+                  <div key={status} className="flex items-center justify-between">
+                    <span className="text-sm text-slate-700">
+                      {formatLabel(status)}
+                    </span>
+                    <Badge variant="outline" className="border-slate-200">
+                      {count}
+                    </Badge>
                   </div>
                 ))}
               </div>
@@ -357,13 +339,18 @@ export function ChatbotPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {Object.entries(stats.by_priority).map(([priority, count]) => (
-                  <div key={priority} className="flex justify-between text-sm">
-                    <span className="capitalize text-slate-700">
-                      {priority.replace("_", " ")}
+                  <div
+                    key={priority}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="text-sm text-slate-700">
+                      {formatLabel(priority)}
                     </span>
-                    <Badge variant="outline">{count}</Badge>
+                    <Badge variant="outline" className="border-slate-200">
+                      {count}
+                    </Badge>
                   </div>
                 ))}
               </div>
@@ -372,88 +359,115 @@ export function ChatbotPage() {
         </div>
       )}
 
-      <Card className="flex h-[680px] flex-col overflow-hidden rounded-[26px] border-slate-200 bg-white/95 shadow-[0_20px_56px_-36px_rgba(15,23,42,0.34)]">
-        <CardHeader className="border-b border-slate-200 bg-slate-50/80">
-          <CardTitle className="text-lg font-semibold text-slate-900">
-            Complaint Data Assistant
-          </CardTitle>
-          <p className="text-sm leading-6 text-slate-600">
-            Ask for status counts, recent complaints, category summaries, or
-            high-priority case information.
-          </p>
+      <Card className="flex h-[700px] flex-col overflow-hidden rounded-[28px] border-slate-200 bg-white/95 shadow-[0_20px_56px_-36px_rgba(15,23,42,0.34)]">
+        <CardHeader className="border-b border-slate-200 bg-slate-50/90">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                Assistant ready
+              </div>
+              <CardTitle className="text-lg font-semibold text-slate-900">
+                Complaint Data Assistant
+              </CardTitle>
+              <p className="max-w-3xl text-sm leading-6 text-slate-600">
+                Ask for status counts, recent complaints, category summaries, or
+                high-priority case information.
+              </p>
+            </div>
+
+            <div className="hidden rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm md:block">
+              Uses the live complaints database for operational lookups.
+            </div>
+          </div>
         </CardHeader>
 
-        {/* Chat Messages */}
-        <CardContent className="flex-1 space-y-4 overflow-y-auto p-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.sender === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
+        <CardContent className="flex-1 space-y-4 overflow-y-auto bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_28%,#f8fbff_100%)] p-5 text-slate-900">
+          {messages.map((message) => {
+            const content = parseComplaintMessage(message.text);
+
+            return (
               <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                  message.sender === "user"
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-900"
+                key={message.id}
+                className={`flex ${
+                  message.sender === "user" ? "justify-end" : "justify-start"
                 }`}
               >
-                {message.sender === "bot" ? (
-                  <div className="text-sm leading-relaxed">
-                    {typeof formatComplaintText(message.text) === "string" ? (
-                      <p className="whitespace-pre-wrap font-mono">
-                        {formatComplaintText(message.text)}
-                      </p>
-                    ) : (
-                      formatComplaintText(message.text)
-                    )}
-                  </div>
-                ) : (
-                  <p className="whitespace-pre-wrap">{message.text}</p>
-                )}
                 <div
-                  className={`text-xs mt-1 ${
+                  className={`max-w-[86%] rounded-[22px] border px-4 py-3 shadow-sm ${
                     message.sender === "user"
-                      ? "text-slate-300"
-                      : "text-slate-500"
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
                   }`}
                 >
-                  {message.timestamp.toLocaleTimeString()}
+                  {message.sender === "bot" && (
+                    <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      <Bot className="h-3.5 w-3.5" />
+                      Assistant
+                    </div>
+                  )}
+
+                  {typeof content === "string" ? (
+                    <p className="whitespace-pre-wrap break-words text-sm leading-7">
+                      {content}
+                    </p>
+                  ) : (
+                    content
+                  )}
+
+                  <div
+                    className={`mt-3 text-xs ${
+                      message.sender === "user"
+                        ? "text-slate-300"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    {message.timestamp.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
+
           {isLoading && (
             <div className="flex justify-start">
-              <div className="rounded-lg bg-slate-100 px-4 py-2">
-                <div className="flex space-x-1">
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400"></div>
-                  <div
-                    className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
-                    style={{ animationDelay: "0.1s" }}
-                  ></div>
-                  <div
-                    className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
-                    style={{ animationDelay: "0.2s" }}
-                  ></div>
+              <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-3 text-sm text-slate-500">
+                  <div className="flex space-x-1">
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400"></div>
+                    <div
+                      className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
+                      style={{ animationDelay: "0.1s" }}
+                    ></div>
+                    <div
+                      className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
+                      style={{ animationDelay: "0.2s" }}
+                    ></div>
+                  </div>
+                  Assistant is preparing a response
                 </div>
               </div>
             </div>
           )}
+
           <div ref={messagesEndRef} />
         </CardContent>
 
-        {/* Quick Questions */}
         <div className="border-t border-slate-200 bg-slate-50/70 p-4">
-          <p className="mb-2 text-sm text-slate-600">Quick questions:</p>
-          <div className="mb-4 flex flex-wrap gap-2">
-            {quickQuestions.map((question, index) => (
+          <p className="mb-3 text-sm font-medium text-slate-600">
+            Quick questions
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {quickQuestions.map((question) => (
               <Button
-                key={index}
+                key={question}
                 variant="outline"
                 size="sm"
-                onClick={() => handleQuickQuestion(question)}
+                onClick={() => void submitMessage(question)}
+                disabled={isLoading}
                 className="rounded-full border-slate-200 bg-white text-xs text-slate-700 hover:bg-slate-100"
               >
                 {question}
@@ -462,23 +476,24 @@ export function ChatbotPage() {
           </div>
         </div>
 
-        {/* Message Input */}
-        <div className="border-t border-slate-200 p-4">
-          <div className="flex gap-2">
+        <div className="border-t border-slate-200 bg-white p-4">
+          <div className="flex flex-col gap-3 md:flex-row">
             <textarea
               value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onChange={(event) => setInputMessage(event.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Ask me about complaint data..."
-              className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              rows={2}
+              className="min-h-[96px] flex-1 resize-none rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              rows={3}
               disabled={isLoading}
             />
+
             <Button
-              onClick={sendMessage}
+              onClick={() => void submitMessage(inputMessage)}
               disabled={!inputMessage.trim() || isLoading}
-              className="rounded-xl bg-slate-900 px-6 text-white hover:bg-slate-800"
+              className="h-auto rounded-[20px] bg-slate-900 px-6 py-3 text-white hover:bg-slate-800 md:min-w-[132px]"
             >
+              <SendHorizontal className="h-4 w-4" />
               Send
             </Button>
           </div>

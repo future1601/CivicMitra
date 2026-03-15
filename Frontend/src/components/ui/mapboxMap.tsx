@@ -153,10 +153,16 @@ const MapboxMap: React.FC<MapProps> = ({ locations, onMarkerClick }) => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const locationsRef = useRef<Location[]>(locations);
+  const markerClickRef = useRef<MapProps["onMarkerClick"]>(onMarkerClick);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   useEffect(() => {
     locationsRef.current = locations;
   }, [locations]);
+
+  useEffect(() => {
+    markerClickRef.current = onMarkerClick;
+  }, [onMarkerClick]);
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -172,7 +178,7 @@ const MapboxMap: React.FC<MapProps> = ({ locations, onMarkerClick }) => {
     mapInstance.addControl(new mapboxgl.NavigationControl(), "top-right");
 
     const handleLayerClick = (event: mapboxgl.MapMouseEvent & mapboxgl.EventData) => {
-      if (!onMarkerClick || !event.features || event.features.length === 0) {
+      if (!markerClickRef.current || !event.features || event.features.length === 0) {
         return;
       }
 
@@ -182,13 +188,14 @@ const MapboxMap: React.FC<MapProps> = ({ locations, onMarkerClick }) => {
       );
 
       if (clickedLocation) {
-        onMarkerClick(clickedLocation);
+        markerClickRef.current(clickedLocation);
       }
     };
 
     mapInstance.on("load", () => {
       upsertLocationsLayer(mapInstance, locationsRef.current);
       fitMapToLocations(mapInstance, locationsRef.current);
+      mapInstance.resize();
 
       mapInstance.on("click", LAYER_ID, handleLayerClick);
       mapInstance.on("mouseenter", LAYER_ID, () => {
@@ -199,11 +206,18 @@ const MapboxMap: React.FC<MapProps> = ({ locations, onMarkerClick }) => {
       });
     });
 
+    resizeObserverRef.current = new ResizeObserver(() => {
+      mapInstance.resize();
+    });
+    resizeObserverRef.current.observe(mapContainer.current);
+
     return () => {
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
       mapInstance.remove();
       map.current = null;
     };
-  }, [onMarkerClick]);
+  }, []);
 
   useEffect(() => {
     const mapInstance = map.current;
@@ -212,6 +226,7 @@ const MapboxMap: React.FC<MapProps> = ({ locations, onMarkerClick }) => {
     }
 
     const syncMapData = () => {
+      mapInstance.resize();
       upsertLocationsLayer(mapInstance, locations);
       fitMapToLocations(mapInstance, locations);
     };
