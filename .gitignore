@@ -70,3 +70,6 @@ __pycache__/
 # Calling service runtime artifacts
 newservice/calling_service/storage/  
   
+
+# CCTV agent runtime artifacts
+Cctv_Agent/calling_service/storage/
