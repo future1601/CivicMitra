@@ -174,34 +174,6 @@ export default function App() {
         <StatisticsSection />
       </section>
 
-      <section className="surface-panel surface-panel--padded">
-        <SectionHeader
-          eyebrow="Emergency Response"
-          title="Calling service control"
-          description="Keep the FastAPI calling service visible from the same dashboard so operators can verify detector routing, inspect endpoint health, and trigger manual alert calls when needed."
-        />
-
-        <div className="flex flex-col gap-4 rounded-[24px] border border-slate-200 bg-slate-50/80 p-5 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">
-              Open the emergency broadcast console
-            </h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-              Use the dedicated calling tab to confirm service health and send
-              a test or live broadcast call to the phone number carried in the
-              detector payload.
-            </p>
-          </div>
-
-          <Button
-            onClick={() => handleTabChange("calls")}
-            className="rounded-full bg-slate-900 px-5 text-white hover:bg-slate-800"
-          >
-            Open calling console
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </section>
     </div>
   );
 
