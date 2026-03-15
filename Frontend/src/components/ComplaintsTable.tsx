@@ -18,7 +18,7 @@ interface Complaint {
   id: string;
   title: string;
   location: string;
-  severity: "low" | "medium" | "high";
+  severity: "low" | "medium" | "high" | "very_high";
   submittedDate: string;
   status: string;
   category: string;
@@ -54,6 +54,14 @@ export function ComplaintsTable({ onViewComplaint }: ComplaintsTableProps) {
     }
   };
 
+  const formatDisplayDate = (value: string) => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value || "Unknown date";
+    }
+    return parsed.toLocaleDateString();
+  };
+
   // Convert Report to Complaint format for compatibility
   const complaints: Complaint[] = reports.map((report) => ({
     id: report.report_id,
@@ -65,7 +73,7 @@ export function ComplaintsTable({ onViewComplaint }: ComplaintsTableProps) {
     location:
       report.address_extracted ||
       `${report.location_lat}, ${report.location_lon}`,
-    severity: report.priority as "low" | "medium" | "high",
+    severity: report.priority as "low" | "medium" | "high" | "very_high",
     submittedDate: report.created_at,
     status: report.status,
     category: report.category,
@@ -104,38 +112,47 @@ export function ComplaintsTable({ onViewComplaint }: ComplaintsTableProps) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Complaints Management
-        </h1>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 rounded-[24px] border border-slate-200 bg-white/92 p-5 shadow-[0_18px_48px_-34px_rgba(15,23,42,0.3)] lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Case Queue
+          </p>
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+            Review and manage complaints
+          </h2>
+          <p className="text-sm leading-6 text-slate-600">
+            Search complaint records, inspect priorities, and open case details
+            from a cleaner review table.
+          </p>
+        </div>
+        <Button className="rounded-full bg-slate-900 px-5 text-white hover:bg-slate-800">
           Export Report
         </Button>
       </div>
 
-      {/* Filters */}
-      <Card className="p-6 bg-white rounded-xl border shadow-sm">
-        <div className="flex items-center space-x-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <Card className="rounded-[24px] border-slate-200 bg-white/94 p-5 shadow-[0_18px_48px_-34px_rgba(15,23,42,0.3)]">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-slate-400" />
             <Input
               placeholder="Search complaints..."
-              className="pl-10 bg-gray-50 border-gray-200"
+              className="h-11 rounded-xl border-slate-200 bg-slate-50 pl-10"
             />
           </div>
-          <Button variant="outline" className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            className="h-11 rounded-xl border-slate-200 bg-white px-4 text-slate-700 hover:bg-slate-50"
+          >
             <Filter className="w-4 h-4" />
             <span>Filter</span>
           </Button>
         </div>
       </Card>
 
-      {/* Complaints Table */}
-      <Card className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <Card className="overflow-hidden rounded-[24px] border-slate-200 bg-white/94 shadow-[0_18px_48px_-34px_rgba(15,23,42,0.3)]">
         {loading ? (
-          <div className="p-8 text-center">
+          <div className="p-8 text-center text-slate-600">
             <div className="animate-pulse">Loading complaints...</div>
           </div>
         ) : error ? (
@@ -148,29 +165,29 @@ export function ComplaintsTable({ onViewComplaint }: ComplaintsTableProps) {
         ) : (
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-50">
-                <TableHead className="font-semibold text-gray-900">
+              <TableRow className="bg-slate-50/90">
+                <TableHead className="font-semibold text-slate-900">
                   Complaint ID
                 </TableHead>
-                <TableHead className="font-semibold text-gray-900">
+                <TableHead className="font-semibold text-slate-900">
                   Title
                 </TableHead>
-                <TableHead className="font-semibold text-gray-900">
+                <TableHead className="font-semibold text-slate-900">
                   Location
                 </TableHead>
-                <TableHead className="font-semibold text-gray-900">
+                <TableHead className="font-semibold text-slate-900">
                   Category
                 </TableHead>
-                <TableHead className="font-semibold text-gray-900">
+                <TableHead className="font-semibold text-slate-900">
                   Priority
                 </TableHead>
-                <TableHead className="font-semibold text-gray-900">
+                <TableHead className="font-semibold text-slate-900">
                   Status
                 </TableHead>
-                <TableHead className="font-semibold text-gray-900">
+                <TableHead className="font-semibold text-slate-900">
                   Date
                 </TableHead>
-                <TableHead className="font-semibold text-gray-900">
+                <TableHead className="font-semibold text-slate-900">
                   Actions
                 </TableHead>
               </TableRow>
@@ -179,25 +196,28 @@ export function ComplaintsTable({ onViewComplaint }: ComplaintsTableProps) {
               {complaints.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
-                    className="text-center py-8 text-gray-500"
+                  colSpan={8}
+                    className="py-8 text-center text-slate-500"
                   >
                     No complaints found
                   </TableCell>
                 </TableRow>
               ) : (
                 complaints.map((complaint) => (
-                  <TableRow key={complaint.id} className="hover:bg-gray-50">
-                    <TableCell className="font-medium text-blue-600">
+                  <TableRow
+                    key={complaint.id}
+                    className="border-slate-100 hover:bg-slate-50/70"
+                  >
+                    <TableCell className="font-medium text-sky-700">
                       #{complaint.id}
                     </TableCell>
-                    <TableCell className="font-medium text-gray-900">
+                    <TableCell className="font-medium text-slate-900">
                       {complaint.title}
                     </TableCell>
-                    <TableCell className="text-gray-600">
+                    <TableCell className="text-slate-600">
                       {complaint.location}
                     </TableCell>
-                    <TableCell className="text-gray-600">
+                    <TableCell className="text-slate-600">
                       {complaint.category.replace("_", " ")}
                     </TableCell>
                     <TableCell>
@@ -218,15 +238,15 @@ export function ComplaintsTable({ onViewComplaint }: ComplaintsTableProps) {
                           complaint.status.replace("_", " ").slice(1)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-gray-600">
-                      {new Date(complaint.submittedDate).toLocaleDateString()}
+                    <TableCell className="text-slate-600">
+                      {formatDisplayDate(complaint.submittedDate)}
                     </TableCell>
                     <TableCell>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => onViewComplaint(complaint)}
-                        className="flex items-center space-x-1"
+                        className="rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                       >
                         <Eye className="w-3 h-3" />
                         <span>View</span>

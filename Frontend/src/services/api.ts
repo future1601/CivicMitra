@@ -99,6 +99,56 @@ export interface ReportStats {
   by_priority: Record<string, number>;
 }
 
+export interface CallingServiceStatus {
+  configured: boolean;
+  base_url: string;
+  public_base_url?: string | null;
+  backend_public_base_url?: string | null;
+  public_broadcast_endpoint?: string | null;
+  public_collect_endpoint?: string | null;
+  detector_broadcast_endpoint?: string | null;
+  detector_collect_endpoint?: string | null;
+  reachable: boolean;
+  health?: Record<string, unknown> | null;
+  detail?: string | null;
+}
+
+export interface BroadcastCallResult {
+  status: string;
+  flow: string;
+  call_sid: string;
+  number: string;
+  webhook_url: string;
+}
+
+export interface CollectDetailsCallResult {
+  status: string;
+  flow: string;
+  call_sid: string;
+  number: string;
+  webhook_url: string;
+}
+
+export interface CollectedCallRecord {
+  token: string;
+  flow: string;
+  call_sid?: string | null;
+  number: string;
+  prompt?: string | null;
+  location_prompt?: string | null;
+  recording_url?: string | null;
+  issue_recording_url?: string | null;
+  location_recording_url?: string | null;
+  transcript?: string | null;
+  issue_transcript?: string | null;
+  location_transcript?: string | null;
+  created_at?: string | null;
+  completed_at?: string | null;
+  status?: string | null;
+  raw_payload?: string | null;
+  synced_at?: string | null;
+}
+
 class ApiService {
   private async fetchWithErrorHandling(url: string, options?: RequestInit) {
     try {
@@ -111,7 +161,24 @@ class ApiService {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorPayload = await response.json();
+          const detail =
+            typeof errorPayload?.detail === "string"
+              ? errorPayload.detail
+              : typeof errorPayload?.detail?.detail === "string"
+                ? errorPayload.detail.detail
+                : typeof errorPayload?.error === "string"
+                  ? errorPayload.error
+                  : "";
+          if (detail) {
+            errorMessage = detail;
+          }
+        } catch {
+          // Ignore JSON parsing failure and keep the fallback message.
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -230,6 +297,34 @@ class ApiService {
     }
 
     return response.json();
+  }
+
+  async getCallingServiceStatus(): Promise<CallingServiceStatus> {
+    return this.fetchWithErrorHandling(`${API_BASE_URL}/calling/status`);
+  }
+
+  async sendBroadcastCall(
+    number: string,
+    message: string
+  ): Promise<BroadcastCallResult> {
+    return this.fetchWithErrorHandling(`${API_BASE_URL}/calling/broadcast`, {
+      method: "POST",
+      body: JSON.stringify({ number, message }),
+    });
+  }
+
+  async sendCollectDetailsCall(
+    number: string,
+    prompt: string
+  ): Promise<CollectDetailsCallResult> {
+    return this.fetchWithErrorHandling(`${API_BASE_URL}/calling/collect-details`, {
+      method: "POST",
+      body: JSON.stringify({ number, prompt }),
+    });
+  }
+
+  async getCollectedCallRecords(): Promise<CollectedCallRecord[]> {
+    return this.fetchWithErrorHandling(`${API_BASE_URL}/calling/collected-records`);
   }
 }
 

@@ -1,0 +1,327 @@
+:root {
+  --app-bg-top: #eef4fb;
+  --app-bg-bottom: #f7fafc;
+  --app-ink: #10243e;
+  --app-muted: #5b6b80;
+  --app-border: rgba(15, 23, 42, 0.08);
+  --app-border-strong: rgba(15, 23, 42, 0.12);
+  --app-surface: rgba(255, 255, 255, 0.9);
+  --app-surface-strong: rgba(255, 255, 255, 0.96);
+  --app-surface-soft: #f3f7fb;
+  --app-brand: #0f3d63;
+  --app-brand-strong: #0b2f4f;
+  --app-brand-soft: #e6eef6;
+  --app-shadow: 0 20px 60px -42px rgba(15, 23, 42, 0.28);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  font-family: "IBM Plex Sans", "Segoe UI", "Noto Sans", sans-serif;
+  color: var(--app-ink);
+  background:
+    radial-gradient(circle at top left, rgba(15, 61, 99, 0.08), transparent 28%),
+    radial-gradient(circle at top right, rgba(14, 116, 144, 0.07), transparent 24%),
+    linear-gradient(180deg, var(--app-bg-top) 0%, var(--app-bg-bottom) 100%);
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.app-main {
+  width: min(1400px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1.5rem 0 3rem;
+}
+
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.surface-panel {
+  border: 1px solid var(--app-border);
+  border-radius: 26px;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(14px);
+}
+
+.surface-panel--padded {
+  padding: 1.4rem;
+}
+
+.page-masthead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.45rem 1.5rem;
+}
+
+.page-masthead__copy {
+  max-width: 760px;
+}
+
+.page-masthead__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.section-eyebrow {
+  margin-bottom: 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--app-brand);
+}
+
+.page-title {
+  font-size: clamp(1.85rem, 2.8vw, 2.6rem);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--app-ink);
+}
+
+.page-copy {
+  margin-top: 0.65rem;
+  max-width: 64ch;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: var(--app-muted);
+}
+
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.section-head__copy {
+  max-width: 36rem;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--app-muted);
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.quick-card {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--app-border);
+  border-radius: 22px;
+  background: linear-gradient(180deg, var(--app-surface-strong) 0%, var(--app-surface-soft) 100%);
+}
+
+.quick-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 16px;
+  background: var(--app-brand-soft);
+  color: var(--app-brand);
+}
+
+.quick-card__title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--app-ink);
+}
+
+.quick-card__text {
+  margin-top: 0.2rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--app-muted);
+}
+
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid var(--app-border);
+  background: rgba(248, 250, 252, 0.9);
+  backdrop-filter: blur(18px);
+}
+
+.admin-topbar__inner {
+  width: min(1400px, calc(100% - 2rem));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.admin-brand__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--app-brand) 0%, var(--app-brand-strong) 100%);
+  color: white;
+  box-shadow: 0 18px 34px -24px rgba(15, 61, 99, 0.82);
+}
+
+.admin-brand__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--app-muted);
+}
+
+.admin-brand__title {
+  margin-top: 0.12rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--app-ink);
+}
+
+.admin-brand__subtitle {
+  font-size: 0.88rem;
+  color: var(--app-muted);
+}
+
+.admin-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2.55rem;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 61, 99, 0.12);
+  background: rgba(230, 238, 246, 0.95);
+  color: var(--app-brand);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.admin-tablist {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--app-border);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 16px 40px -34px rgba(15, 23, 42, 0.45);
+}
+
+.admin-tab {
+  border-radius: 999px;
+  padding-inline: 1rem;
+  color: var(--app-muted);
+}
+
+.admin-tab--active {
+  background: var(--app-brand);
+  color: white;
+  box-shadow: 0 16px 28px -20px rgba(15, 61, 99, 0.8);
+}
+
+[data-slot="card"] {
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 42px -34px rgba(15, 23, 42, 0.25);
+}
+
+input,
+select,
+textarea {
+  background: #f7f9fc;
+  border-color: rgba(148, 163, 184, 0.35);
+  color: var(--app-ink);
+  caret-color: var(--app-brand);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(91, 107, 128, 0.78);
+}
+
+@media (max-width: 1100px) {
+  .quick-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-masthead {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-topbar__inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-topbar__right {
+    justify-content: flex-start;
+  }
+
+  .admin-tablist {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .admin-tab {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-main {
+    width: min(100% - 1rem, 100%);
+    padding-top: 1rem;
+  }
+
+  .surface-panel--padded,
+  .page-masthead {
+    padding: 1rem;
+  }
+
+  .admin-brand__subtitle {
+    display: none;
+  }
+}

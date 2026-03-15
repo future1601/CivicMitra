@@ -1,20 +1,22 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+import base64
 import requests
 import os
 import json
 import uuid
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 from dotenv import load_dotenv
 from database import WhatsAppBotDatabase
 from workflow import ComplaintWorkflow
 from models import ComplaintState
 from chatbot import ComplaintChatbot
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Literal
 
 # Load environment variables
 load_dotenv()
@@ -39,6 +41,28 @@ chatbot = ComplaintChatbot()
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "my_verify_token")
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
+CALLING_SERVICE_BASE_URL = os.getenv(
+    "NEW_CALLING_SERVICE_BASE_URL",
+    "http://127.0.0.1:5002",
+).rstrip("/")
+CALLING_SERVICE_PUBLIC_BASE_URL = os.getenv(
+    "NEW_CALLING_SERVICE_PUBLIC_BASE_URL",
+    os.getenv("CALLING_SERVICE_PUBLIC_BASE_URL", ""),
+).rstrip("/")
+CIVICCONNECT_PUBLIC_BASE_URL = os.getenv(
+    "CIVICCONNECT_PUBLIC_BASE_URL",
+    "",
+).rstrip("/")
+CALLING_SERVICE_TIMEOUT = float(os.getenv("CALLING_SERVICE_TIMEOUT", "15"))
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CALLING_SERVICE_COLLECTED_CALLS_FILE = (
+    PROJECT_ROOT
+    / "testproj"
+    / "newservice"
+    / "calling_service"
+    / "storage"
+    / "collected_calls.json"
+)
 
 def get_or_create_session(phone_number: str) -> dict:
     """Get existing session or create new one"""
@@ -138,6 +162,273 @@ def send_whatsapp_message(to_number: str, message: str):
     else:
         print(f"❌ Failed to send message: {response.status_code}")
         print(f"Response: {response.text}")
+
+
+def build_calling_service_url(path: str) -> str:
+    return f"{CALLING_SERVICE_BASE_URL}{path}"
+
+
+def calling_service_public_endpoint(path: str) -> str | None:
+    if not CALLING_SERVICE_PUBLIC_BASE_URL:
+        return None
+    return f"{CALLING_SERVICE_PUBLIC_BASE_URL}{path}"
+
+
+def civicconnect_public_endpoint(path: str) -> str | None:
+    if not CIVICCONNECT_PUBLIC_BASE_URL:
+        return None
+    return f"{CIVICCONNECT_PUBLIC_BASE_URL}{path}"
+
+
+def parse_report_coordinates(
+    raw_coordinates: Optional[str],
+) -> tuple[Optional[Dict[str, float]], float, float, str]:
+    coordinates = None
+    location_lat = 0.0
+    location_lon = 0.0
+    address_extracted = "No location"
+
+    if not raw_coordinates:
+        return coordinates, location_lat, location_lon, address_extracted
+
+    coords_str = raw_coordinates.strip()
+
+    try:
+        if coords_str.startswith("GPS: "):
+            coords_part = coords_str[5:]
+            lat_str, lng_str = coords_part.split(", ")
+            location_lat = float(lat_str.strip())
+            location_lon = float(lng_str.strip())
+            coordinates = {"lat": location_lat, "lng": location_lon}
+            address_extracted = f"Lat: {location_lat}, Lng: {location_lon}"
+            return coordinates, location_lat, location_lon, address_extracted
+
+        coord_data = json.loads(coords_str)
+        if isinstance(coord_data, dict) and "lat" in coord_data and "lng" in coord_data:
+            location_lat = float(coord_data["lat"])
+            location_lon = float(coord_data["lng"])
+            coordinates = {"lat": location_lat, "lng": location_lon}
+            address_extracted = str(
+                coord_data.get("label")
+                or coord_data.get("address")
+                or f"Lat: {location_lat}, Lng: {location_lon}"
+            )
+            return coordinates, location_lat, location_lon, address_extracted
+    except (json.JSONDecodeError, ValueError, TypeError, IndexError):
+        pass
+
+    address_extracted = coords_str
+    return coordinates, location_lat, location_lon, address_extracted
+
+
+def create_detector_location(
+    location: Optional[str],
+    source: Optional[str],
+    camera_id: Optional[str],
+) -> str:
+    cleaned_location = (location or "").strip()
+    cleaned_source = (source or "CCTV").strip() or "CCTV"
+    cleaned_camera_id = (camera_id or "").strip()
+
+    if cleaned_location:
+        return cleaned_location
+    if cleaned_camera_id:
+        return f"{cleaned_source} Camera {cleaned_camera_id}"
+    return cleaned_source
+
+
+def normalize_detector_timestamp(raw_value: Optional[str]) -> str:
+    cleaned_value = (raw_value or "").strip()
+    if not cleaned_value:
+        return datetime.now().isoformat(timespec="seconds")
+
+    try:
+        normalized = datetime.fromisoformat(cleaned_value.replace("Z", "+00:00"))
+    except ValueError:
+        return datetime.now().isoformat(timespec="seconds")
+
+    return normalized.isoformat(timespec="seconds")
+
+
+def decode_detector_image(image_base64: Optional[str]) -> bytes | None:
+    encoded = (image_base64 or "").strip()
+    if not encoded:
+        return None
+
+    if "," in encoded:
+        encoded = encoded.split(",", 1)[1]
+
+    padding = len(encoded) % 4
+    if padding:
+        encoded += "=" * (4 - padding)
+
+    try:
+        return base64.b64decode(encoded, validate=False)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid image_base64 payload: {exc}") from exc
+
+
+def load_calling_service_collected_calls() -> List[Dict[str, Any]]:
+    if not CALLING_SERVICE_COLLECTED_CALLS_FILE.exists():
+        return []
+
+    try:
+        with open(CALLING_SERVICE_COLLECTED_CALLS_FILE, "r", encoding="utf-8") as file_obj:
+            data = json.load(file_obj)
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    return data if isinstance(data, list) else []
+
+
+def sync_collected_call_records() -> int:
+    synced_count = 0
+
+    for record in load_calling_service_collected_calls():
+        token = str(record.get("token", "")).strip()
+        if not token or db.collected_call_exists(token):
+            continue
+
+        db.save_collected_call_record(record)
+        synced_count += 1
+
+    return synced_count
+
+
+def trigger_calling_service_broadcast(number: str, message: str) -> Dict[str, Any]:
+    try:
+        response = requests.post(
+            build_calling_service_url("/api/calls/broadcast"),
+            json={"number": number, "message": message},
+            timeout=CALLING_SERVICE_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        print(f"❌ Error reaching calling service: {exc}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Calling service unreachable: {exc}",
+        ) from exc
+
+    if not response.ok:
+        try:
+            error_payload = response.json()
+        except ValueError:
+            error_payload = {"detail": response.text or "Calling service request failed"}
+        raise HTTPException(status_code=response.status_code, detail=error_payload)
+
+    return response.json()
+
+
+def trigger_calling_service_collect_details(
+    number: str,
+    prompt: str,
+    location_prompt: str,
+) -> Dict[str, Any]:
+    try:
+        response = requests.post(
+            build_calling_service_url("/api/calls/collect-details"),
+            json={
+                "number": number,
+                "prompt": prompt,
+                "location_prompt": location_prompt,
+            },
+            timeout=CALLING_SERVICE_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Calling service unreachable: {exc}",
+        ) from exc
+
+    if not response.ok:
+        try:
+            error_payload = response.json()
+        except ValueError:
+            error_payload = {"detail": response.text or "Calling service request failed"}
+        raise HTTPException(status_code=response.status_code, detail=error_payload)
+
+    return response.json()
+
+
+async def proxy_calling_service_request(request: Request, path: str) -> Response:
+    target_url = build_calling_service_url(path)
+    flow = request.query_params.get("flow", "").strip()
+    if request.url.query:
+        target_url = f"{target_url}?{request.url.query}"
+
+    headers = {}
+    content_type = request.headers.get("content-type")
+    if content_type:
+        headers["content-type"] = content_type
+
+    body = await request.body()
+
+    try:
+        upstream = requests.request(
+            method=request.method,
+            url=target_url,
+            data=body if body else None,
+            headers=headers,
+            timeout=CALLING_SERVICE_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Calling service proxy failed: {exc}",
+        ) from exc
+
+    media_type = upstream.headers.get("content-type", "application/octet-stream")
+    if ";" in media_type:
+        media_type = media_type.split(";", 1)[0].strip()
+
+    if path == "/webhooks/twilio/call-flow" and flow == "collect":
+        synced_count = sync_collected_call_records()
+        if synced_count:
+            print(f"Synced {synced_count} collected call record(s) into CivicConnect DB.")
+
+    return Response(
+        content=upstream.content,
+        status_code=upstream.status_code,
+        media_type=media_type,
+    )
+
+
+def create_detector_report(payload: "DetectorBroadcastPayload") -> Dict[str, str]:
+    report_id = str(uuid.uuid4())
+    source_name = (payload.source or "CCTV").strip() or "CCTV"
+    submitted_at = normalize_detector_timestamp(payload.detected_at)
+    description = (payload.issue or payload.message).strip()
+    location_label = create_detector_location(
+        payload.location,
+        payload.source,
+        payload.camera_id,
+    )
+    image_bytes = decode_detector_image(payload.image_base64)
+    image_path = save_image_to_storage(image_bytes, report_id) if image_bytes else None
+
+    db.save_government_report(
+        {
+            "report_id": report_id,
+            "session_id": f"detection-{uuid.uuid4()}",
+            "citizen_phone": source_name,
+            "description": description,
+            "coordinates": location_label,
+            "image_path": image_path,
+            "category": payload.category or "public_safety",
+            "priority": payload.priority or "very_high",
+            "department": payload.department or "Public Safety Department",
+            "resolution_days": payload.resolution_days or 1,
+            "submitted_at": submitted_at,
+        }
+    )
+
+    return {
+        "report_id": report_id,
+        "source": source_name,
+        "location": location_label,
+        "submitted_at": submitted_at,
+        "image_path": image_path or "",
+    }
 
 @app.get("/")
 @app.get("/webhook")
@@ -286,32 +577,7 @@ async def get_all_reports():
         
         reports = []
         for row in rows:
-            # Parse coordinates if they exist
-            coordinates = None
-            location_lat, location_lon = 0, 0
-            if row[4]:  # coordinates field
-                try:
-                    coords_str = row[4]
-                    if coords_str.startswith("GPS: "):
-                        # Handle "GPS: lat, lng" format
-                        coords_part = coords_str[5:]  # Remove "GPS: " prefix
-                        lat_str, lng_str = coords_part.split(", ")
-                        lat = float(lat_str.strip())
-                        lng = float(lng_str.strip())
-                        coordinates = {"lat": lat, "lng": lng}
-                        location_lat = lat
-                        location_lon = lng
-                    else:
-                        # Handle JSON format
-                        coord_data = json.loads(coords_str)
-                        coordinates = {
-                            "lat": coord_data.get("lat", 0),
-                            "lng": coord_data.get("lng", 0)
-                        }
-                        location_lat = coordinates["lat"]
-                        location_lon = coordinates["lng"]
-                except (json.JSONDecodeError, ValueError, IndexError):
-                    pass
+            coordinates, location_lat, location_lon, address_extracted = parse_report_coordinates(row[4])
             
             report = {
                 "report_id": row[0],
@@ -330,7 +596,7 @@ async def get_all_reports():
                 # Additional fields for Frontend compatibility
                 "location_lat": location_lat,
                 "location_lon": location_lon,
-                "address_extracted": f"Lat: {location_lat}, Lng: {location_lon}" if coordinates else "No location",
+                "address_extracted": address_extracted,
             }
             reports.append(report)
         
@@ -698,32 +964,7 @@ async def get_report_details(report_id: str):
         if not row:
             raise HTTPException(status_code=404, detail="Report not found")
         
-        # Parse coordinates
-        coordinates = None
-        location_lat, location_lon = 0, 0
-        if row[4]:
-            try:
-                coords_str = row[4]
-                if coords_str.startswith("GPS: "):
-                    # Handle "GPS: lat, lng" format
-                    coords_part = coords_str[5:]  # Remove "GPS: " prefix
-                    lat_str, lng_str = coords_part.split(", ")
-                    lat = float(lat_str.strip())
-                    lng = float(lng_str.strip())
-                    coordinates = {"lat": lat, "lng": lng}
-                    location_lat = lat
-                    location_lon = lng
-                else:
-                    # Handle JSON format
-                    coord_data = json.loads(coords_str)
-                    coordinates = {
-                        "lat": coord_data.get("lat", 0),
-                        "lng": coord_data.get("lng", 0)
-                    }
-                    location_lat = coordinates["lat"]
-                    location_lon = coordinates["lng"]
-            except (json.JSONDecodeError, ValueError, IndexError):
-                pass
+        coordinates, location_lat, location_lon, address_extracted = parse_report_coordinates(row[4])
         
         report = {
             "report_id": row[0],
@@ -741,7 +982,7 @@ async def get_report_details(report_id: str):
             "updated_at": row[12],
             "location_lat": location_lat,
             "location_lon": location_lon,
-            "address_extracted": f"Lat: {location_lat}, Lng: {location_lon}" if coordinates else "No location",
+            "address_extracted": address_extracted,
         }
         
         return {"success": True, "data": report}
@@ -751,6 +992,164 @@ async def get_report_details(report_id: str):
     except Exception as e:
         print(f"❌ Error fetching report details: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Calling Service API Models
+class BroadcastCallPayload(BaseModel):
+    number: str
+    message: str
+
+
+class CollectDetailsCallPayload(BaseModel):
+    number: str
+    prompt: str = "Hello from the grievance helpline. Please describe your issue after the beep."
+    location_prompt: str = "Please state the exact location of the issue after the beep."
+
+
+class DetectorBroadcastPayload(BaseModel):
+    number: str
+    message: str
+    issue: Optional[str] = None
+    priority: Optional[Literal["low", "medium", "high", "very_high"]] = None
+    department: Optional[str] = None
+    category: Optional[str] = None
+    resolution_days: Optional[int] = None
+    location: Optional[str] = None
+    source: Optional[str] = "CCTV"
+    camera_id: Optional[str] = None
+    detected_at: Optional[str] = None
+    image_base64: Optional[str] = None
+
+
+@app.get("/api/calling/status")
+async def get_calling_service_status(request: Request):
+    """Get calling-service connectivity and endpoint information for the dashboard."""
+    health_url = build_calling_service_url("/health")
+    public_broadcast_endpoint = calling_service_public_endpoint("/api/calls/broadcast")
+    public_collect_endpoint = calling_service_public_endpoint("/api/calls/collect-details")
+    backend_public_base_url = CIVICCONNECT_PUBLIC_BASE_URL
+
+    if not backend_public_base_url:
+        forwarded_host = request.headers.get("x-forwarded-host", "").strip()
+        if forwarded_host:
+            forwarded_proto = request.headers.get("x-forwarded-proto", "https").strip() or "https"
+            backend_public_base_url = f"{forwarded_proto}://{forwarded_host}".rstrip("/")
+
+    status_payload = {
+        "configured": bool(CALLING_SERVICE_BASE_URL),
+        "base_url": CALLING_SERVICE_BASE_URL,
+        "public_base_url": CALLING_SERVICE_PUBLIC_BASE_URL or None,
+        "backend_public_base_url": backend_public_base_url or None,
+        "public_broadcast_endpoint": public_broadcast_endpoint,
+        "public_collect_endpoint": public_collect_endpoint,
+        "detector_broadcast_endpoint": (
+            f"{backend_public_base_url}/api/calls/broadcast"
+            if backend_public_base_url
+            else None
+        ),
+        "detector_collect_endpoint": (
+            f"{backend_public_base_url}/api/calls/collect-details"
+            if backend_public_base_url
+            else None
+        ),
+        "reachable": False,
+        "health": None,
+        "detail": None,
+    }
+
+    try:
+        response = requests.get(health_url, timeout=5)
+        response.raise_for_status()
+        status_payload["reachable"] = True
+        status_payload["health"] = response.json()
+    except requests.RequestException as exc:
+        status_payload["detail"] = str(exc)
+
+    return {"success": True, "data": status_payload}
+
+
+@app.post("/api/calling/broadcast")
+async def create_broadcast_call(payload: BroadcastCallPayload):
+    """Proxy a broadcast-call request to the FastAPI calling service."""
+    return {
+        "success": True,
+        "data": trigger_calling_service_broadcast(payload.number, payload.message),
+    }
+    try:
+        response = requests.post(
+            build_calling_service_url("/api/calls/broadcast"),
+            json=payload.model_dump(),
+            timeout=CALLING_SERVICE_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        print(f"❌ Error reaching calling service: {exc}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Calling service unreachable: {exc}",
+        ) from exc
+
+    if not response.ok:
+        try:
+            error_payload = response.json()
+        except ValueError:
+            error_payload = {"detail": response.text or "Calling service request failed"}
+        raise HTTPException(status_code=response.status_code, detail=error_payload)
+
+    return {"success": True, "data": response.json()}
+
+
+@app.post("/api/calling/collect-details")
+@app.post("/api/calls/collect-details")
+@app.post("/api/detection/alerts/collect-details")
+async def create_collect_details_call(payload: CollectDetailsCallPayload):
+    """Proxy a collect-details call request to the FastAPI calling service."""
+    return {
+        "success": True,
+        "data": trigger_calling_service_collect_details(
+            payload.number,
+            payload.prompt,
+            payload.location_prompt,
+        ),
+    }
+
+
+@app.get("/api/calling/collected-records")
+async def get_collected_call_records():
+    """Return collected call transcripts and recording metadata stored in CivicConnect."""
+    sync_collected_call_records()
+    return {"success": True, "data": db.get_collected_call_records()}
+
+
+@app.post("/api/calls/broadcast")
+@app.post("/api/detection/alerts/broadcast")
+async def create_detector_broadcast(payload: DetectorBroadcastPayload):
+    """Detector endpoint: store a CCTV incident and relay the alert call."""
+    report = create_detector_report(payload)
+    call_response = trigger_calling_service_broadcast(payload.number, payload.message)
+
+    return {
+        "success": True,
+        "data": {
+            "report_id": report["report_id"],
+            "source": report["source"],
+            "location": report["location"],
+            "submitted_at": report["submitted_at"],
+            "image_path": report["image_path"] or None,
+            "call": call_response,
+        },
+    }
+
+
+@app.api_route("/webhooks/twilio/call-flow", methods=["GET", "POST"])
+async def proxy_twilio_call_flow(request: Request):
+    """Expose the local calling-service webhook through the CivicConnect backend."""
+    return await proxy_calling_service_request(request, "/webhooks/twilio/call-flow")
+
+
+@app.api_route("/audio/{filename}", methods=["GET", "HEAD"])
+async def proxy_calling_audio(filename: str, request: Request):
+    """Expose generated calling-service audio through the CivicConnect backend."""
+    return await proxy_calling_service_request(request, f"/audio/{filename}")
+
 
 # Chatbot API Models
 class ChatMessage(BaseModel):
@@ -788,11 +1187,16 @@ async def get_chatbot_stats():
 @app.get("/api/uploads/{filename}")
 async def get_uploaded_file(filename: str):
     """Serve uploaded images from the uploads directory"""
-    file_path = os.path.join("uploads", filename)
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    else:
-        raise HTTPException(status_code=404, detail="File not found")
+    candidate_paths = [
+        os.path.join("uploads", filename),
+        os.path.join("uploads", "reports", filename),
+    ]
+
+    for file_path in candidate_paths:
+        if os.path.exists(file_path):
+            return FileResponse(file_path)
+
+    raise HTTPException(status_code=404, detail="File not found")
 
 @app.get("/health")
 async def health_check():
