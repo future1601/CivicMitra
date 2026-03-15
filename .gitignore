@@ -59,3 +59,5 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+whatsapp_bot.db
